@@ -6,55 +6,129 @@
 		<title>Tic-Tac-Toe RL</title>
 		<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 		<style>
-			:root {
-				--bg: #ffeb3b; /* bold yellow background */
-				--panel: #ffffff; /* flat white panels */
-				--text: #111111; /* primary text color */
-				--muted: #333333; /* subdued text */
-			}
+            :root {
+                --bg: #ffeb3b; /* bold yellow background */
+                --panel: #ffffff; /* flat white panels */
+                --text: #111111; /* primary text color */
+                --muted: #333333; /* subdued text */
+                --cell: clamp(70px, 22vw, 120px);
+                --x: #0d47a1; /* deep blue for X */
+                --o: #b71c1c; /* deep red for O */
+            }
 			* { box-sizing: border-box; }
 			html, body { height: 100%; }
 			body { font-family: system-ui, Arial, sans-serif; margin: 0; background: var(--bg); color: var(--text); display: flex; align-items: center; justify-content: center; }
-			.wrapper { width: 100%; max-width: 520px; padding: 24px; }
-			h1 { margin: 0 0 16px; font-size: 26px; font-weight: 800; letter-spacing: .2px; color: var(--text); text-align: center; }
+            .wrapper { width: 100%; max-width: 560px; padding: 24px; }
+            h1 { margin: 0 0 8px; font-size: 28px; font-weight: 900; letter-spacing: .2px; color: var(--text); text-align: center; }
 			.panel { background: var(--panel); border: 3px solid #000; border-radius: 0; padding: 16px; box-shadow: 8px 8px 0 #000; }
-			.controls { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+            .controls { display: grid; grid-template-columns: 1fr; gap: 10px; align-items: center; justify-content: center; margin-bottom: 12px; }
+            .row { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; }
 			button { background: #ffffff; color: #000; border: 3px solid #000; padding: 10px 14px; border-radius: 0; font-weight: 800; cursor: pointer; box-shadow: 4px 4px 0 #000; transition: transform .08s ease, box-shadow .08s ease; }
 			button:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000; }
 			button:active { transform: translate(0, 0); box-shadow: 2px 2px 0 #000; }
-			button#trainBtn { background: #000; color: var(--bg); }
-			label { font-size: 14px; color: var(--muted); font-weight: 700; }
-			input[type="number"] { background: #ffffff; color: #000; border: 3px solid #000; border-radius: 0; padding: 6px 8px; box-shadow: 4px 4px 0 #000; }
-			.grid { display: grid; grid-template-columns: repeat(3, 110px); grid-gap: 12px; margin: 12px auto; justify-content: center; }
-			.cell { width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 56px; font-weight: 900; border-radius: 0; background: #ffffff; border: 3px solid #000; box-shadow: 4px 4px 0 #000; cursor: pointer; user-select: none; transition: transform .08s ease, box-shadow .08s ease; color: #111; }
-			.cell:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000; }
-			.cell.disabled { cursor: not-allowed; color: #777; }
-			.cell:empty::after { content: ""; }
-			.cell:has(> .x) { color: #111; }
-			.cell:has(> .o) { color: #111; }
-			.status { margin-top: 12px; min-height: 24px; font-weight: 800; text-align: center; color: #000; }
+            button#trainBtn { background: #000; color: var(--bg); }
+            button[disabled] { opacity: .6; cursor: not-allowed; }
+            label { font-size: 14px; color: var(--muted); font-weight: 700; }
+            .sub { margin: 0 0 14px; text-align: center; color: var(--muted); font-size: 14px; }
+            input[type="number"], input[type="range"], select { background: #ffffff; color: #000; border: 3px solid #000; border-radius: 0; padding: 6px 8px; box-shadow: 4px 4px 0 #000; }
+            .grid { display: grid; grid-template-columns: repeat(3, var(--cell)); grid-gap: 10px; margin: 12px auto; justify-content: center; }
+            .cell { width: var(--cell); height: var(--cell); display: flex; align-items: center; justify-content: center; font-size: calc(var(--cell) * 0.5); font-weight: 900; border-radius: 0; background: #ffffff; border: 3px solid #000; box-shadow: 4px 4px 0 #000; cursor: pointer; user-select: none; transition: transform .08s ease, box-shadow .08s ease, background-color .2s ease; color: #111; }
+            .cell:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000; }
+            .cell.disabled { cursor: not-allowed; color: #777; }
+            .cell:empty::after { content: ""; }
+            .cell:has(> .x) { color: #111; }
+            .cell:has(> .o) { color: #111; }
+            .cell.win { background: #c8e6c9; }
+            .x { color: var(--x); }
+            .o { color: var(--o); }
+            .badges { display:flex; gap:10px; justify-content:center; align-items:center; margin: 4px 0; }
+            .badge { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:3px solid #000; background:#fff; box-shadow:4px 4px 0 #000; font-weight:900; }
+            .dot { width:10px; height:10px; border:2px solid #000; }
+            .dot.x { background: var(--x); }
+            .dot.o { background: var(--o); }
+            .status { margin-top: 12px; min-height: 24px; font-weight: 800; text-align: center; color: #000; }
+            details { border:3px solid #000; padding:8px; box-shadow:4px 4px 0 #000; background:#fff; }
+            summary { cursor:pointer; font-weight:900; }
 		</style>
 	</head>
 	<body>
 		<div class="wrapper">
 			<h1>Tic-Tac-Toe (Reinforcement Learning)</h1>
+			<p class="sub">Pick a mode, then click a square. X always starts.</p>
 			<div class="panel">
 				<div class="controls">
-					<button id="resetBtn">Reset</button>
-					<button id="trainBtn">Train 50000 episodes</button>
-					<label>Teacher ability <input id="ability" type="number" value="0.9" min="0" max="1" step="0.05" style="width:80px" /></label>
+					<div class="row">
+						<label>Mode
+							<select id="mode" aria-label="Game mode">
+								<option value="agent">Vs Agent</option>
+								<option value="pvp">Player vs Player</option>
+							</select>
+						</label>
+						<button id="resetBtn" aria-label="Start a new game">New Game</button>
+					</div>
+					<div class="badges" aria-live="polite" aria-atomic="true">
+						<span class="badge"><span class="dot x"></span> X</span>
+						<span class="badge"><span class="dot o"></span> O</span>
+					</div>
+					<details id="trainingPanel">
+						<summary>Training (advanced)</summary>
+						<div class="row" style="margin-top:8px">
+							<button id="trainBtn">Train (50k episodes)</button>
+							<label>Teacher ability
+								<input id="abilityRange" type="range" min="0" max="1" step="0.05" value="0.9" style="width:160px" />
+								<input id="ability" type="number" value="0.9" min="0" max="1" step="0.05" style="width:80px" />
+							</label>
+						</div>
+					</details>
 				</div>
-				<div class="grid" id="grid"></div>
-				<div class="status" id="status"></div>
-			</div>
+                <div class="grid" id="grid"></div>
+                <div class="status" id="status" role="status" aria-live="polite" aria-atomic="true"></div>
+            </div>
 		</div>
 
 		<script>
 			let board = [['-','-','-'],['-','-','-'],['-','-','-']];
 			const grid = document.getElementById('grid');
 			const statusEl = document.getElementById('status');
+			const modeSelect = document.getElementById('mode');
+			const trainingPanel = document.getElementById('trainingPanel');
+			const abilityRange = document.getElementById('abilityRange');
+			const abilityInput = document.getElementById('ability');
 			let isRequestInProgress = false;
 			let isGameOver = false;
+			let currentPlayer = 'X'; // Used for PvP mode only
+			let winningCells = new Set();
+
+			function isDraw(b) {
+				for (let i = 0; i < 3; i++) {
+					for (let j = 0; j < 3; j++) {
+						if (b[i][j] === '-') return false;
+					}
+				}
+				return true;
+			}
+
+			function hasWin(b, sym) {
+				// Rows and cols
+				for (let i = 0; i < 3; i++) {
+					if (b[i][0] === sym && b[i][1] === sym && b[i][2] === sym) return true;
+					if (b[0][i] === sym && b[1][i] === sym && b[2][i] === sym) return true;
+				}
+				// Diagonals
+				if (b[0][0] === sym && b[1][1] === sym && b[2][2] === sym) return true;
+				if (b[0][2] === sym && b[1][1] === sym && b[2][0] === sym) return true;
+				return false;
+			}
+
+			function getWinningLine(b, sym) {
+				for (let i = 0; i < 3; i++) {
+					if (b[i][0] === sym && b[i][1] === sym && b[i][2] === sym) return [[i,0],[i,1],[i,2]];
+					if (b[0][i] === sym && b[1][i] === sym && b[2][i] === sym) return [[0,i],[1,i],[2,i]];
+				}
+				if (b[0][0] === sym && b[1][1] === sym && b[2][2] === sym) return [[0,0],[1,1],[2,2]];
+				if (b[0][2] === sym && b[1][1] === sym && b[2][0] === sym) return [[0,2],[1,1],[2,0]];
+				return null;
+			}
 
 			function render() {
 				grid.innerHTML = '';
@@ -62,6 +136,7 @@
 					for (let j = 0; j < 3; j++) {
 						const div = document.createElement('div');
 						div.className = 'cell';
+						if (winningCells.has(`${i}-${j}`)) div.classList.add('win');
 						const val = board[i][j];
 						if (val !== '-') {
 							const span = document.createElement('span');
@@ -84,47 +159,78 @@
 
 				// The reset button should only be disabled during a request, not when the game is over.
 				document.getElementById('resetBtn').disabled = disabled && isGameActive;
-				document.getElementById('trainBtn').disabled = disabled || isGameOver;
-				document.getElementById('ability').disabled = disabled || isGameOver;
-				render();
-			}
+				const agentMode = modeSelect.value === 'agent';
+                document.getElementById('trainBtn').disabled = disabled || isGameOver || !agentMode;
+                document.getElementById('ability').disabled = disabled || isGameOver || !agentMode;
+                const ar = document.getElementById('abilityRange');
+                if (ar) ar.disabled = disabled || isGameOver || !agentMode;
+                render();
+            }
 
 			async function onCellClick(i, j) {
 				if (board[i][j] !== '-' || isRequestInProgress || isGameOver) return;
-				setStatus('Thinking...');
-				setControlsDisabled(true);
-				try {
-					const res = await fetch("{{ url_for('api_move') }}", {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ board, playerMove: [i, j] })
-					});
-					const data = await res.json();
-					if (!res.ok) {
-						setStatus(data.error || 'Error making move.');
+				if (modeSelect.value === 'agent') {
+					setStatus('Thinking...');
+					setControlsDisabled(true);
+					try {
+						const res = await fetch("{{ url_for('api_move') }}", {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ board, playerMove: [i, j] })
+						});
+						const data = await res.json();
+						if (!res.ok) {
+							setStatus(data.error || 'Error making move.');
+							return;
+						}
+						board = data.board;
+						winningCells.clear();
+						render();
+						if (data.status === 'ended') {
+							isGameOver = true;
+							if (data.result === 'player_win') {
+								const line = getWinningLine(board, 'X');
+								if (line) line.forEach(([a,b]) => winningCells.add(`${a}-${b}`));
+								render();
+								setStatus('You win!');
+								confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
+							} else if (data.result === 'agent_win') {
+								const line = getWinningLine(board, 'O');
+								if (line) line.forEach(([a,b]) => winningCells.add(`${a}-${b}`));
+								render();
+								setStatus('Agent wins.');
+							} else {
+								setStatus("It's a draw.");
+							}
+						} else {
+							setStatus('Your turn.');
+						}
+					} catch (e) {
+						setStatus('Network error.');
+					} finally {
+						setControlsDisabled(false);
+					}
+				} else {
+					// PvP mode: place current player's mark, check game state, switch turns
+					board[i][j] = currentPlayer;
+					winningCells.clear();
+					render();
+					if (hasWin(board, currentPlayer)) {
+						isGameOver = true;
+						const line = getWinningLine(board, currentPlayer);
+						if (line) line.forEach(([a,b]) => winningCells.add(`${a}-${b}`));
+						render();
+						setStatus(currentPlayer + ' wins!');
+						confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
 						return;
 					}
-					board = data.board;
-					render(); // Re-render to show the final move
-
-					if (data.status === 'ended') {
+					if (isDraw(board)) {
 						isGameOver = true;
-						if (data.result === 'player_win') {
-							setStatus('You win!');
-							confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
-						} else if (data.result === 'agent_win') {
-							setStatus('Agent wins.');
-						} else {
-							setStatus("It's a draw.");
-						}
-					} else {
-						setStatus('Your turn.');
+						setStatus("It's a draw.");
+						return;
 					}
-				} catch (e) {
-					setStatus('Network error.');
-				} finally {
-					// Re-enable controls if game is not over, otherwise leave them disabled.
-					setControlsDisabled(false);
+					currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+					setStatus(currentPlayer + "'s turn.");
 				}
 			}
 
@@ -135,15 +241,18 @@
 				setControlsDisabled(false); // Re-enable controls for a new game
 				const res = await fetch("{{ url_for('api_reset') }}", { method: 'POST' });
 				isGameOver = false;
+				currentPlayer = 'X';
 				const data = await res.json();
-				board = data.board; render(); setStatus('Your turn.');
+				board = data.board; render();
+				if (modeSelect.value === 'agent') setStatus('Your turn.');
+				else setStatus("X's turn.");
 			});
 
 			document.getElementById('trainBtn').addEventListener('click', async () => {
 				if (isRequestInProgress) return;
 				setStatus('Training...');
 				setControlsDisabled(true);
-				const ability = parseFloat(document.getElementById('ability').value || '0.9');
+				const ability = parseFloat(abilityInput.value || '0.9');
 				const res = await fetch("{{ url_for('api_train') }}", {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
@@ -154,8 +263,24 @@
 				setControlsDisabled(false);
 			});
 
+			modeSelect.addEventListener('change', () => {
+				// Reset state on mode change to avoid mixed game contexts
+				isGameOver = false;
+				currentPlayer = 'X';
+				winningCells.clear();
+				render();
+				const agentMode = modeSelect.value === 'agent';
+				if (agentMode) setStatus('Your turn.'); else setStatus("X's turn.");
+				// Update control enablement for the mode
+				setControlsDisabled(false);
+				// Show training only for Agent mode
+				trainingPanel.style.display = agentMode ? 'block' : 'none';
+			});
+
 			render();
 			setStatus('Your turn.');
+			// Initialize training panel visibility
+			trainingPanel.style.display = modeSelect.value === 'agent' ? 'block' : 'none';
 		</script>
 	</body>
 </html>
