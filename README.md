@@ -75,3 +75,30 @@ For this use case, the argument `-a` is only used to define a default agent path
 Finally, to load a stored agent and view a plot of its cumulative reward history, use the script plot_agent_reward.py:
 
     python plot_agent_reward.py -p q_agent.pkl
+
+
+## Flask app (play in browser)
+
+1. Create a virtual environment (recommended) and install deps:
+
+```bash
+pip install -r requirements.txt
+```
+
+2. Run the server:
+
+```bash
+python app.py
+```
+
+3. Open the UI at `http://localhost:5000`.
+
+Environment overrides (optional):
+- `AGENT_TYPE`: `q` or `s` (default `q`)
+- `AGENT_PATH`: path to pickle (default auto by agent type)
+- `EPSILON`, `ALPHA`, `GAMMA`: hyperparameters for the agent
+
+REST endpoints:
+- `POST /api/reset` -> `{ board }`
+- `POST /api/move` with `{ board: string[3][3], playerMove: [i,j] }`
+- `POST /api/train` with `{ episodes: number, teacherAbility: number }`

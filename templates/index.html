@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Tic-Tac-Toe RL</title>
+		<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+		<style>
+			:root {
+				--bg: #ffeb3b; /* bold yellow background */
+				--panel: #ffffff; /* flat white panels */
+				--text: #111111; /* primary text color */
+				--muted: #333333; /* subdued text */
+			}
+			* { box-sizing: border-box; }
+			html, body { height: 100%; }
+			body { font-family: system-ui, Arial, sans-serif; margin: 0; background: var(--bg); color: var(--text); display: flex; align-items: center; justify-content: center; }
+			.wrapper { width: 100%; max-width: 520px; padding: 24px; }
+			h1 { margin: 0 0 16px; font-size: 26px; font-weight: 800; letter-spacing: .2px; color: var(--text); text-align: center; }
+			.panel { background: var(--panel); border: 3px solid #000; border-radius: 0; padding: 16px; box-shadow: 8px 8px 0 #000; }
+			.controls { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+			button { background: #ffffff; color: #000; border: 3px solid #000; padding: 10px 14px; border-radius: 0; font-weight: 800; cursor: pointer; box-shadow: 4px 4px 0 #000; transition: transform .08s ease, box-shadow .08s ease; }
+			button:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000; }
+			button:active { transform: translate(0, 0); box-shadow: 2px 2px 0 #000; }
+			button#trainBtn { background: #000; color: var(--bg); }
+			label { font-size: 14px; color: var(--muted); font-weight: 700; }
+			input[type="number"] { background: #ffffff; color: #000; border: 3px solid #000; border-radius: 0; padding: 6px 8px; box-shadow: 4px 4px 0 #000; }
+			.grid { display: grid; grid-template-columns: repeat(3, 110px); grid-gap: 12px; margin: 12px auto; justify-content: center; }
+			.cell { width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 56px; font-weight: 900; border-radius: 0; background: #ffffff; border: 3px solid #000; box-shadow: 4px 4px 0 #000; cursor: pointer; user-select: none; transition: transform .08s ease, box-shadow .08s ease; color: #111; }
+			.cell:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000; }
+			.cell.disabled { cursor: not-allowed; color: #777; }
+			.cell:empty::after { content: ""; }
+			.cell:has(> .x) { color: #111; }
+			.cell:has(> .o) { color: #111; }
+			.status { margin-top: 12px; min-height: 24px; font-weight: 800; text-align: center; color: #000; }
+		</style>
+	</head>
+	<body>
+		<div class="wrapper">
+			<h1>Tic-Tac-Toe (Reinforcement Learning)</h1>
+			<div class="panel">
+				<div class="controls">
+					<button id="resetBtn">Reset</button>
+					<button id="trainBtn">Train 50000 episodes</button>
+					<label>Teacher ability <input id="ability" type="number" value="0.9" min="0" max="1" step="0.05" style="width:80px" /></label>
+				</div>
+				<div class="grid" id="grid"></div>
+				<div class="status" id="status"></div>
+			</div>
+		</div>
+
+		<script>
+			let board = [['-','-','-'],['-','-','-'],['-','-','-']];
+			const grid = document.getElementById('grid');
+			const statusEl = document.getElementById('status');
+			let isRequestInProgress = false;
+			let isGameOver = false;
+
+			function render() {
+				grid.innerHTML = '';
+				for (let i = 0; i < 3; i++) {
+					for (let j = 0; j < 3; j++) {
+						const div = document.createElement('div');
+						div.className = 'cell';
+						const val = board[i][j];
+						if (val !== '-') {
+							const span = document.createElement('span');
+							span.className = val === 'X' ? 'x' : 'o';
+							span.textContent = val;
+							div.appendChild(span);
+						}
+						if (val !== '-' || isRequestInProgress || isGameOver) {
+							div.classList.add('disabled');
+						}
+						div.addEventListener('click', () => onCellClick(i, j));
+						grid.appendChild(div);
+					}
+				}
+			}
+
+			function setControlsDisabled(disabled) {
+				isRequestInProgress = disabled; // Used to disable cells during API calls
+				const isGameActive = !isGameOver;
+
+				// The reset button should only be disabled during a request, not when the game is over.
+				document.getElementById('resetBtn').disabled = disabled && isGameActive;
+				document.getElementById('trainBtn').disabled = disabled || isGameOver;
+				document.getElementById('ability').disabled = disabled || isGameOver;
+				render();
+			}
+
+			async function onCellClick(i, j) {
+				if (board[i][j] !== '-' || isRequestInProgress || isGameOver) return;
+				setStatus('Thinking...');
+				setControlsDisabled(true);
+				try {
+					const res = await fetch("{{ url_for('api_move') }}", {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ board, playerMove: [i, j] })
+					});
+					const data = await res.json();
+					if (!res.ok) {
+						setStatus(data.error || 'Error making move.');
+						return;
+					}
+					board = data.board;
+					render(); // Re-render to show the final move
+
+					if (data.status === 'ended') {
+						isGameOver = true;
+						if (data.result === 'player_win') {
+							setStatus('You win!');
+							confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
+						} else if (data.result === 'agent_win') {
+							setStatus('Agent wins.');
+						} else {
+							setStatus("It's a draw.");
+						}
+					} else {
+						setStatus('Your turn.');
+					}
+				} catch (e) {
+					setStatus('Network error.');
+				} finally {
+					// Re-enable controls if game is not over, otherwise leave them disabled.
+					setControlsDisabled(false);
+				}
+			}
+
+			function setStatus(text) { statusEl.textContent = text; }
+
+			document.getElementById('resetBtn').addEventListener('click', async () => {
+				if (isRequestInProgress) return;
+				setControlsDisabled(false); // Re-enable controls for a new game
+				const res = await fetch("{{ url_for('api_reset') }}", { method: 'POST' });
+				isGameOver = false;
+				const data = await res.json();
+				board = data.board; render(); setStatus('Your turn.');
+			});
+
+			document.getElementById('trainBtn').addEventListener('click', async () => {
+				if (isRequestInProgress) return;
+				setStatus('Training...');
+				setControlsDisabled(true);
+				const ability = parseFloat(document.getElementById('ability').value || '0.9');
+				const res = await fetch("{{ url_for('api_train') }}", {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ episodes: 50000, teacherAbility: ability })
+				});
+				if (res.ok) setStatus('Training complete. Your turn.');
+				else setStatus('Training failed.');
+				setControlsDisabled(false);
+			});
+
+			render();
+			setStatus('Your turn.');
+		</script>
+	</body>
+</html>

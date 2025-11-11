@@ -1,4 +1,5 @@
 import random
+from functools import lru_cache
 
 
 class Game:
@@ -210,3 +211,89 @@ def getStateKey(board):
 
 
 
+
+
+# ---------- Minimax baseline with transposition cache ----------
+
+def _flatten(board):
+    return ''.join(board[i][j] for i in range(3) for j in range(3))
+
+
+def _legal_moves(board):
+    moves = []
+    for i in range(3):
+        for j in range(3):
+            if board[i][j] == '-':
+                moves.append((i, j))
+    return moves
+
+
+def _winner(board):
+    # returns 'X', 'O', 'D' for draw, or None if ongoing
+    lines = [
+        # rows
+        [(0, 0), (0, 1), (0, 2)],
+        [(1, 0), (1, 1), (1, 2)],
+        [(2, 0), (2, 1), (2, 2)],
+        # cols
+        [(0, 0), (1, 0), (2, 0)],
+        [(0, 1), (1, 1), (2, 1)],
+        [(0, 2), (1, 2), (2, 2)],
+        # diagonals
+        [(0, 0), (1, 1), (2, 2)],
+        [(0, 2), (1, 1), (2, 0)],
+    ]
+    for line in lines:
+        a, b, c = line
+        v1, v2, v3 = board[a[0]][a[1]], board[b[0]][b[1]], board[c[0]][c[1]]
+        if v1 != '-' and v1 == v2 == v3:
+            return v1
+    if any(board[i][j] == '-' for i in range(3) for j in range(3)):
+        return None
+    return 'D'
+
+
+@lru_cache(maxsize=None)
+def _minimax_cached(flat_board, player):
+    # player: 'X' or 'O' — returns (score, best_move)
+    board = [[flat_board[r * 3 + c] for c in range(3)] for r in range(3)]
+    term = _winner(board)
+    if term == 'X':
+        return 1, None
+    if term == 'O':
+        return -1, None
+    if term == 'D':
+        return 0, None
+
+    moves = _legal_moves(board)
+    if player == 'X':
+        best_score = -2
+        best_mv = None
+        for (i, j) in moves:
+            board[i][j] = 'X'
+            sc, _ = _minimax_cached(_flatten(board), 'O')
+            board[i][j] = '-'
+            if sc > best_score:
+                best_score, best_mv = sc, (i, j)
+                if best_score == 1:
+                    break
+        return best_score, best_mv
+    else:
+        best_score = 2
+        best_mv = None
+        for (i, j) in moves:
+            board[i][j] = 'O'
+            sc, _ = _minimax_cached(_flatten(board), 'X')
+            board[i][j] = '-'
+            if sc < best_score:
+                best_score, best_mv = sc, (i, j)
+                if best_score == -1:
+                    break
+        return best_score, best_mv
+
+
+def best_move_minimax(board, key='X'):
+    """Return optimal move (i, j) for given key using cached minimax."""
+    _, mv = _minimax_cached(_flatten(board), key)
+    # fallback to first legal if somehow None
+    return mv if mv is not None else (_legal_moves(board)[0])

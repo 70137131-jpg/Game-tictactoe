@@ -1,4 +1,5 @@
 import random
+from .game import best_move_minimax
 
 class Teacher:
     """ 
@@ -15,12 +16,14 @@ class Teacher:
         probability of making the optimal move at any given time.
     """
 
-    def __init__(self, level=0.9):
+    def __init__(self, level=0.9, strategy='rules'):
         """
         Ability level determines the probability that the teacher will follow
         the optimal strategy as opposed to choosing a random available move.
         """
         self.ability_level = level
+        # strategy: 'rules' (existing heuristic) or 'minimax' (optimal)
+        self.strategy = strategy
 
     def win(self, board, key='X'):
         """ If we have two in a row and the 3rd is available, take it. """
@@ -184,10 +187,14 @@ class Teacher:
         is currently available each time. A touple is returned that represents
         (row, col).
         """
-        # Chose randomly with some probability so that the teacher does not always win
+        # Chance to deviate from optimal to avoid determinism
         if random.random() > self.ability_level:
             return self.randomMove(board)
-        # Follow optimal strategy
+
+        if self.strategy == 'minimax':
+            return best_move_minimax(board, key='X')
+
+        # Default heuristic strategy
         a = self.win(board)
         if a is not None:
             return a
