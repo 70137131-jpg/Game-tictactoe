@@ -10,10 +10,7 @@ from tictactoe.teacher import Teacher
 
 # Configuration
 AGENT_TYPE = os.environ.get('AGENT_TYPE', 'q')  # 'q' or 's'
-IS_VERCEL = os.environ.get('VERCEL') is not None
-_DEFAULT_AGENT_FILENAME = 'q_agent.pkl' if AGENT_TYPE == 'q' else 'sarsa_agent.pkl'
-_DEFAULT_AGENT_PATH = os.path.join('/tmp', _DEFAULT_AGENT_FILENAME) if IS_VERCEL else _DEFAULT_AGENT_FILENAME
-AGENT_PATH = os.environ.get('AGENT_PATH', _DEFAULT_AGENT_PATH)
+AGENT_PATH = os.environ.get('AGENT_PATH', 'q_agent.pkl' if AGENT_TYPE == 'q' else 'sarsa_agent.pkl')
 EPSILON = float(os.environ.get('EPSILON', '0.05'))
 ALPHA = float(os.environ.get('ALPHA', '0.5'))
 GAMMA = float(os.environ.get('GAMMA', '0.9'))
@@ -39,46 +36,6 @@ def save_agent(agent) -> None:
 	if os.path.isfile(AGENT_PATH):
 		os.remove(AGENT_PATH)
 	with open(AGENT_PATH, 'wb') as f:
-		pickle.dump(agent, f)
-
-
-# Redefine functions with Vercel-friendly behavior (overrides above)
-def load_or_init_agent():
-	# Try configured path first
-	if os.path.isfile(AGENT_PATH):
-		with open(AGENT_PATH, 'rb') as f:
-			agent = pickle.load(f)
-		agent.eps = EPSILON
-		return agent
-	# Fallback to bundled pretrained pickle (read-only in deployment)
-	bundle_path = os.path.join(os.path.dirname(__file__), _DEFAULT_AGENT_FILENAME)
-	if os.path.isfile(bundle_path):
-		with open(bundle_path, 'rb') as f:
-			agent = pickle.load(f)
-		agent.eps = EPSILON
-		return agent
-	# init new
-	if AGENT_TYPE == 'q':
-		return Qlearner(alpha=ALPHA, gamma=GAMMA, eps=EPSILON)
-	return SARSAlearner(alpha=ALPHA, gamma=GAMMA, eps=EPSILON)
-
-
-def save_agent(agent) -> None:
-	# Persist agent if possible; on Vercel, default to /tmp
-	target = AGENT_PATH
-	try:
-		parent = os.path.dirname(target)
-		if parent and not os.path.exists(parent):
-			os.makedirs(parent, exist_ok=True)
-		with open(target, 'wb') as f:
-			pickle.dump(agent, f)
-		return
-	except Exception:
-		if not IS_VERCEL:
-			raise
-	# Fallback for Vercel read-only root -> /tmp
-	fallback = os.path.join('/tmp', _DEFAULT_AGENT_FILENAME)
-	with open(fallback, 'wb') as f:
 		pickle.dump(agent, f)
 
 
